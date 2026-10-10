@@ -25,13 +25,14 @@ module.exports = async function handler(req, res) {
     return;
   }
 
-  let body = req.body;
-  if (typeof body === "string") {
-    try {
-      body = JSON.parse(body);
-    } catch {
-      body = {};
-    }
+  let body = null;
+  if (req.body) {
+    body = typeof req.body === "string" ? (() => { try { return JSON.parse(req.body); } catch { return {}; } })() : req.body;
+  } else {
+    const chunks = [];
+    for await (const chunk of req) chunks.push(chunk);
+    const raw = Buffer.concat(chunks).toString("utf8");
+    try { body = JSON.parse(raw); } catch { body = {}; }
   }
   body = body || {};
 
@@ -41,7 +42,7 @@ module.exports = async function handler(req, res) {
   const projectType = String(body.projectType || "").trim().slice(0, 80);
   const details = String(body.details || "").trim().slice(0, 2000);
 
-  if (!name || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || !details) {
+  if (!name || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || !details) {
     res.status(400).json({ ok: false, error: "Please fill in your name, a valid email, and project details." });
     return;
   }
